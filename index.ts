@@ -8,13 +8,14 @@ import {
   getRandom,
   canInsert,
   getConstraints,
+  getSize,
 } from "./map";
 import { mulberry32, randomPick } from "./random";
-import { TileMap } from "./types";
+import { Coordinate, TileMap } from "./types";
 
 function wave(map: TileMap, words: Set<string>, seed: number, print = false) {
   let i = 0;
-  const max = 1_000;
+  const max = 200;
   const random = mulberry32(seed);
   function printState(label: string, withOptions = false) {
     if (!print) return;
@@ -29,17 +30,14 @@ function wave(map: TileMap, words: Set<string>, seed: number, print = false) {
     fillNeighbours(map, words);
     printState("SETTING LOWEST", true);
 
-    // const { randomTile, at } = getRandom(map, random);
-    // const choice = randomPick(randomTile.options, random);
-    const { lowest, at } = getLowest(map, random);
-    const choice = randomPick(lowest.options, random);
-    // setTile(map, at, createTile(choice));
+    const { randomTile, at } = getRandom(map, random);
+    const choice = randomPick(randomTile.options, random);
+    // const { lowest, at } = getLowest(map, random);
+    // const choice = randomPick(lowest.options, random);
     words: for (const word of words) {
-      console.log("processing word", word, "at", at, "with choice", choice);
       if (!word.includes(choice)) continue;
       let index: number = -1;
       while ((index = word.indexOf(choice, index + 1)) !== -1) {
-        console.log({ index });
         const { horizontal, vertical } = getConstraints(map, at);
         if (!horizontal && !vertical) continue;
         const axis = !horizontal ? "vertical" : "horizontal";
@@ -62,8 +60,12 @@ function wave(map: TileMap, words: Set<string>, seed: number, print = false) {
       }
     });
   }
-  if (i >= max) throw new Error("Max iterations reached");
-  console.log({ i, max, words: words.size });
+  if (i >= max) {
+    // console.log("Max iterations reached");
+    // process.exit(1);
+    throw new Error("Max iterations reached");
+  }
+  // console.log({ i, max, words: words.size });
 }
 
 function main() {
@@ -104,19 +106,31 @@ function main() {
       "beige",
     ]);
 
+  const successes: [number, Coordinate][] = [];
   let seed = 0;
   while (seed < 1_000_000_000) {
     try {
-      console.log("SEED", seed);
-      wave(tileMap, getWords(), seed++, true);
-      break;
+      process.stdout.write(`SEED    ${seed}\r`);
+      wave(tileMap, getWords(), seed++, false);
+      const mapSize = getSize(tileMap);
+      if (
+        !successes.find(([_, size]) => size.x * size.y <= mapSize.x * mapSize.y)
+      ) {
+        printMap(tileMap);
+        console.log("NEW BEST", [seed, mapSize.x * mapSize.y, mapSize]);
+      } else {
+        console.log("SUCCESS", seed);
+      }
+      successes.push([seed, mapSize]);
+      resetMap();
     } catch (e) {
-      console.log("FAILURE ------------------");
-      printMap(tileMap);
+      // console.log("FAILURE ------------------");
+      // printMap(tileMap);
       resetMap();
     }
   }
   console.log("SUCCESS ------------------");
+  console.log("SEED", seed);
 
   printMap(tileMap);
 }

@@ -26,6 +26,10 @@ export function canInsert(
     const y = at.y + (orientation === "vertical" ? i : 0);
     const tile = getTile(map, { x, y });
     if (tile?.value && tile.value !== word[i]) return false;
+    const { horizontal, vertical } = getConstraints(map, { x, y });
+    if (horizontal && vertical) return false;
+    if (orientation === "horizontal" && vertical) return false;
+    if (orientation === "vertical" && horizontal) return false;
   }
   return true;
 }
@@ -59,10 +63,10 @@ export function printMap(map: TileMap, withOptions = false) {
     for (let x = minX; x <= maxX; x++) {
       const tile = getTile(map, { x, y });
       if (!tile) {
-        line += ".";
+        line += " ";
         continue;
       }
-      line += tile.value || (withOptions ? tile.options.size : ".");
+      line += tile.value || (withOptions ? tile.options.size : " ");
     }
     console.log(line);
   }
@@ -127,11 +131,17 @@ export function canFill(
 
 export function getConstraints(map: TileMap, { x, y }: Coordinate) {
   const horizontal =
-    getTile(map, { x: x - 1, y })?.value ||
-    getTile(map, { x: x + 1, y })?.value;
+    (!!getTile(map, { x: x - 1, y })?.value &&
+      !getTile(map, { x: x - 2, y })?.value) ||
+    (!!getTile(map, { x: x + 1, y })?.value &&
+      !getTile(map, { x: x + 2, y })?.value);
+
   const vertical =
-    getTile(map, { x, y: y - 1 })?.value ||
-    getTile(map, { x, y: y + 1 })?.value;
+    (!!getTile(map, { x, y: y - 1 })?.value &&
+      !getTile(map, { x, y: y - 2 })?.value) ||
+    (!!getTile(map, { x, y: y + 1 })?.value &&
+      !getTile(map, { x, y: y + 2 })?.value);
+
   return { horizontal, vertical };
 }
 
@@ -211,4 +221,19 @@ export function isPresent(map: TileMap, word: string) {
     }
   }
   return false;
+}
+
+export function getSize(map: TileMap): Coordinate {
+  const xValues = Object.keys(map).map((x) => parseInt(x));
+  const yValues = Object.values(map)
+    .flatMap(Object.keys)
+    .map((y) => parseInt(y));
+  const minX = Math.min(...xValues);
+  const maxX = Math.max(...xValues);
+  const minY = Math.min(...yValues);
+  const maxY = Math.max(...yValues);
+  return {
+    x: maxX - minX - 1,
+    y: maxY - minY - 1,
+  };
 }
